@@ -142,6 +142,8 @@ export default buildConfig({
       token: process.env.BLOB_READ_WRITE_TOKEN,
       collections: { media: true },
       clientUploads: true,
+      // Keep the database schema identical whether or not a token is present (local, tests, Vercel).
+      alwaysInsertFields: true,
       cacheControlMaxAge: 60 * 60 * 24 * 365,
     }),
     seoPlugin({

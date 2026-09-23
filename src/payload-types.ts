@@ -295,6 +295,7 @@ export interface Media {
    */
   description?: string | null;
   blurDataURL?: string | null;
+  _objectKey?: string | null;
   folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
@@ -1991,6 +1992,7 @@ export interface MediaSelect<T extends boolean = true> {
   caption?: T;
   description?: T;
   blurDataURL?: T;
+  _objectKey?: T;
   folder?: T;
   updatedAt?: T;
   createdAt?: T;

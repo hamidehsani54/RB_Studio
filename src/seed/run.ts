@@ -21,7 +21,7 @@ if (existing.totalDocs > 0) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const create = async (collection: CollectionSlug, data: Record<string, any>) =>
-  payload.create({ collection, data: data as never, context, draft: false })
+  payload.create({ collection, data: data as never, context: { ...context }, draft: false })
 
 /* ------------------------------------------------------------------ */
 /* Admin user                                                          */
@@ -29,7 +29,9 @@ const create = async (collection: CollectionSlug, data: Record<string, any>) =>
 
 const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@rbstudio.se'
 const adminPassword = process.env.SEED_ADMIN_PASSWORD || crypto.randomBytes(9).toString('base64url')
-await create('users', { name: 'RB Studio', email: adminEmail, password: adminPassword, role: 'admin' })
+const existingAdmin = await payload.find({ collection: 'users', where: { email: { equals: adminEmail } }, limit: 1 })
+const adminCreated = existingAdmin.totalDocs === 0
+if (adminCreated) await create('users', { name: 'RB Studio', email: adminEmail, password: adminPassword, role: 'admin' })
 
 /* ------------------------------------------------------------------ */
 /* Media                                                               */
@@ -84,7 +86,8 @@ for (const [key, [id, alt]] of Object.entries(photos)) {
     collection: 'media',
     data: { alt, title: alt.split(' ').slice(0, 5).join(' ') },
     file: { data, mimetype: 'image/jpeg', name: `rb-${key}.jpg`, size: data.length },
-    context,
+    // A fresh context per call — storage plugins keep per-upload state in it.
+    context: { ...context },
   })
   media[key as keyof typeof photos] = doc.id
   payload.logger.info(`Uploaded ${key}`)
@@ -448,7 +451,7 @@ await create('posts', {
 
 await payload.updateGlobal({
   slug: 'site-settings',
-  context,
+  context: { ...context },
   data: {
     siteName: 'RB Studio',
     tagline: 'Wedding & portrait photographer',
@@ -514,7 +517,7 @@ await payload.updateGlobal({
 
 await payload.updateGlobal({
   slug: 'about',
-  context,
+  context: { ...context },
   data: {
     name: 'RB Studio',
     role: 'Photographer & founder',
@@ -802,7 +805,7 @@ for (const lg of legal) {
 payload.logger.info('──────────────────────────────────────────────')
 payload.logger.info('Seed complete.')
 payload.logger.info(`Admin login:  ${adminEmail}`)
-payload.logger.info(`Password:     ${adminPassword}`)
+payload.logger.info(adminCreated ? `Password:     ${adminPassword}` : 'Password:     (unchanged — this account already existed)')
 payload.logger.info('Change this password after your first login (Account → Change password).')
 payload.logger.info('──────────────────────────────────────────────')
 process.exit(0)

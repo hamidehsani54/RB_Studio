@@ -2024,4 +2024,8 @@ CREATE SCHEMA IF NOT EXISTS "payload";
 
 -- Tell Payload this migration has already been applied.
 INSERT INTO "payload"."payload_migrations" ("name", "batch") VALUES ('20260923_111354_initial', 1);
+
+-- 20260923_120247_blob_object_key: storage key for photos kept in Vercel Blob
+ALTER TABLE "payload"."media" ADD COLUMN "_objectkey" varchar;
+INSERT INTO "payload"."payload_migrations" ("name", "batch") VALUES ('20260923_120247_blob_object_key', 2);
 COMMIT;
