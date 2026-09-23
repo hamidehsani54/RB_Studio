@@ -1,7 +1,9 @@
+import { postgresAdapter } from '@payloadcms/db-postgres'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { seoPlugin } from '@payloadcms/plugin-seo'
+import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
@@ -23,11 +25,16 @@ import { Posts } from './collections/Posts'
 import { PostCategories } from './collections/PostCategories'
 import { SiteSettings } from './globals/SiteSettings'
 import { About } from './globals/About'
+import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 const serverURL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+
+// `file:./x.db` → SQLite (local development) · `postgres://…` → PostgreSQL / Supabase (production)
+const databaseUrl = process.env.DATABASE_URL || 'file:./rb-studio.db'
+const isPostgres = /^postgres(ql)?:\/\//.test(databaseUrl)
 
 const email = process.env.SMTP_HOST
   ? nodemailerAdapter({
@@ -87,19 +94,54 @@ export default buildConfig({
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: { outputFile: path.resolve(dirname, 'payload-types.ts') },
-  db: sqliteAdapter({
-    client: { url: process.env.DATABASE_URL || 'file:./rb-studio.db' },
-  }),
+  db: isPostgres
+    ? postgresAdapter({
+        pool: {
+          connectionString: databaseUrl,
+          max: Number(process.env.DATABASE_POOL_MAX || 10),
+          // Supabase requires SSL. Provide its CA certificate (Project settings → Database → SSL)
+          // in DATABASE_CA_CERT for full verification.
+          ssl: /localhost|127\.0\.0\.1/.test(databaseUrl)
+            ? undefined
+            : process.env.DATABASE_CA_CERT
+              ? { ca: process.env.DATABASE_CA_CERT.replace(/\\n/g, '\n') }
+              : { rejectUnauthorized: false },
+        },
+        // Production schema changes only happen through reviewed migrations in src/migrations.
+        // Own schema: Supabase only exposes `public` through its auto-generated REST API,
+        // so Payload's tables (users, inquiries…) can't be reached with the public anon key.
+        schemaName: process.env.DATABASE_SCHEMA || 'payload',
+        push: false,
+        migrationDir: path.resolve(dirname, 'migrations'),
+        prodMigrations: migrations,
+      })
+    : sqliteAdapter({ client: { url: databaseUrl } }),
   sharp,
   email,
   cors: [serverURL],
   csrf: [serverURL],
   // Runs scheduled publishing (journal posts set to publish later).
   jobs: {
+    // On Vercel there is no always-on process, so Vercel Cron calls /api/payload-jobs/run
+    // with the CRON_SECRET (see vercel.json). Logged-in admins may trigger it too.
+    access: {
+      run: ({ req }) =>
+        Boolean(req.user) ||
+        (Boolean(process.env.CRON_SECRET) && req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`),
+    },
     autoRun: process.env.NODE_ENV === 'test' ? [] : [{ cron: '* * * * *', queue: 'default', limit: 10 }],
     shouldAutoRun: () => process.env.NEXT_PHASE !== 'phase-production-build',
   },
   plugins: [
+    // Photos go to Vercel Blob when a token is present (serverless hosts have no permanent disk).
+    // Browsers upload straight to Blob, so large camera files bypass Vercel's 4.5 MB request limit.
+    vercelBlobStorage({
+      enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      collections: { media: true },
+      clientUploads: true,
+      cacheControlMaxAge: 60 * 60 * 24 * 365,
+    }),
     seoPlugin({
       // SEO fields are placed manually (see fields/seo.ts) — the plugin supplies the "generate" buttons.
       collections: [],

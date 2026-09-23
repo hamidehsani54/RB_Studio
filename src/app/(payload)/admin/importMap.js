@@ -36,6 +36,7 @@ import { Icon as Icon_80ebcb12978a9db9a1c04af0af89c7ec } from '../../../componen
 import { Logo as Logo_80ebcb12978a9db9a1c04af0af89c7ec } from '../../../components/admin/Graphics'
 import { Dashboard as Dashboard_16b88e9b8c48e393fa86591406efd08f } from '../../../components/admin/Dashboard'
 import { NavLinks as NavLinks_c025f118f75d1c67ec1517e1fc784abd } from '../../../components/admin/NavLinks'
+import { VercelBlobClientUploadHandler as VercelBlobClientUploadHandler_16c82c5e25f430251a3e3ba57219ff4e } from '@payloadcms/storage-vercel-blob/client'
 import { AvailabilityCalendarView as AvailabilityCalendarView_0b22c6c6628a7a57f3e5f2265a80bc74 } from '../../../components/admin/AvailabilityCalendarView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
@@ -79,6 +80,7 @@ export const importMap = {
   "/components/admin/Graphics#Logo": Logo_80ebcb12978a9db9a1c04af0af89c7ec,
   "/components/admin/Dashboard#Dashboard": Dashboard_16b88e9b8c48e393fa86591406efd08f,
   "/components/admin/NavLinks#NavLinks": NavLinks_c025f118f75d1c67ec1517e1fc784abd,
+  "@payloadcms/storage-vercel-blob/client#VercelBlobClientUploadHandler": VercelBlobClientUploadHandler_16c82c5e25f430251a3e3ba57219ff4e,
   "/components/admin/AvailabilityCalendarView#AvailabilityCalendarView": AvailabilityCalendarView_0b22c6c6628a7a57f3e5f2265a80bc74,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

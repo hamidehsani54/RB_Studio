@@ -52,10 +52,23 @@ SITE_URL=https://rbstudio.se npm run test:smoke   # …or against the live site 
 - **Integration** (`tests/int`): access control and roles, drafts, private availability notes, login lockout and password reset, slug and date rules, ordering, pricing packages, journal publishing, page sections, the contact form (validation, spam protection, rate limiting, email notifications, auto-reply), inquiry CRM and CSV export, image optimisation, SEO metadata and the sitemap.
 - **Smoke** (`tests/e2e`): crawls every sitemap URL and checks it renders, has one `<h1>`, a title, a meta description, a canonical URL, Open Graph tags, alt text on every image and valid JSON-LD; also checks 404s, robots.txt, AVIF/WebP delivery, security headers and API permissions.
 
+## Supabase (PostgreSQL)
+
+The database type is chosen from `DATABASE_URL`: `file:…` uses SQLite, `postgresql://…` uses Postgres.
+
+1. In Supabase open **Connect → Session pooler** and copy the connection string (port 5432). Put your database password in it and set it as `DATABASE_URL`. The project API keys are not used for the database.
+2. Create the tables, using **one** of these:
+   - `npm run payload migrate` (recommended; in production migrations also run automatically on start), or
+   - paste [`supabase/schema.sql`](supabase/schema.sql) into the Supabase **SQL editor** and run it.
+3. `npm run seed` for starter content, or create the first admin user at `/admin`.
+
+All tables live in a separate `payload` schema. Supabase's auto-generated REST API only exposes `public`, so users and inquiries can't be read with the public anon key. Don't add `payload` to "Exposed schemas".
+
+After changing collections or fields, run `npm run payload migrate:create <name>` and commit the new file in `src/migrations`.
+
 ## Production deployment
 
-1. **Database**: `npm i @payloadcms/db-postgres`, then in `src/payload.config.ts` replace `sqliteAdapter(...)` with
-   `postgresAdapter({ pool: { connectionString: process.env.DATABASE_URL } })`. Create migrations with `npm run payload migrate:create` and run `npm run payload migrate` on deploy.
+1. **Database**: Supabase or any PostgreSQL (see above).
 2. **Media storage**: on serverless/multi-instance hosting, add `@payloadcms/storage-s3` (S3, Cloudflare R2, DigitalOcean Spaces…) so photographs live in object storage behind a CDN. On a single VPS the local `media/` folder works (back it up).
 3. Set `NEXT_PUBLIC_SERVER_URL` to the real domain, fill in SMTP settings, and set strong `PAYLOAD_SECRET` / `PREVIEW_SECRET` values.
 4. `npm run build && npm start` (Node 20+), or deploy to Vercel / Railway / a VPS.
