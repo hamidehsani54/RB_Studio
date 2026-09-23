@@ -13,6 +13,8 @@ if (!process.env.NEXT_PUBLIC_SERVER_URL && process.env.VERCEL_PROJECT_PRODUCTION
 }
 
 const nextConfig: NextConfig = {
+  // Don't auto-generate AGENTS.md / CLAUDE.md in the project folder.
+  agentRules: false,
   images: {
     // Photographs are served as AVIF (or WebP as fallback) at the exact size each screen needs.
     formats: ['image/avif', 'image/webp'],

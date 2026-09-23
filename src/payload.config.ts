@@ -74,6 +74,7 @@ export default buildConfig({
         Icon: '/components/admin/Graphics#Icon',
       },
       beforeDashboard: ['/components/admin/Dashboard#Dashboard'],
+      afterLogin: ['/components/admin/BackToSite#BackToSite'],
       beforeNavLinks: ['/components/admin/NavLinks#NavLinks'],
       views: {
         availabilityCalendar: {
