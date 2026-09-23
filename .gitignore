@@ -1,0 +1,32 @@
+# dependencies & build output
+node_modules
+.next
+out
+build
+next-env.d.ts
+*.tsbuildinfo
+coverage
+
+# secrets — never commit (use .env.example as the template)
+.env
+.env.*
+!.env.example
+
+# databases (content lives in the database, not in git)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+test.db*
+
+# uploaded photographs
+/media
+
+# logs & OS/editor files
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+.claude
