@@ -39,6 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: settings.seoDescription || undefined,
     applicationName: settings.siteName,
+    creator: settings.developerName || undefined,
     icons: { icon: favicon, apple: favicon },
     openGraph: {
       siteName: settings.siteName,

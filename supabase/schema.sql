@@ -2028,4 +2028,10 @@ INSERT INTO "payload"."payload_migrations" ("name", "batch") VALUES ('20260923_1
 -- 20260923_120247_blob_object_key: storage key for photos kept in Vercel Blob
 ALTER TABLE "payload"."media" ADD COLUMN "_objectkey" varchar;
 INSERT INTO "payload"."payload_migrations" ("name", "batch") VALUES ('20260923_120247_blob_object_key', 2);
+
+-- 20260923_122605_developer_credit: "Website by …" credit in the footer
+ALTER TABLE "payload"."site_settings" ADD COLUMN "show_developer_credit" boolean DEFAULT true;
+ALTER TABLE "payload"."site_settings" ADD COLUMN "developer_name" varchar DEFAULT 'Hamid Ehsani';
+ALTER TABLE "payload"."site_settings" ADD COLUMN "developer_url" varchar;
+INSERT INTO "payload"."payload_migrations" ("name", "batch") VALUES ('20260923_122605_developer_credit', 3);
 COMMIT;

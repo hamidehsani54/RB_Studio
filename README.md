@@ -2,6 +2,8 @@
 
 Premium editorial portfolio website for RB Studio with a built-in admin panel. Every piece of visible content (texts, images, sections, prices, services, FAQ, availability, SEO, legal pages, social links, cookie/analytics settings) is managed at **/admin**. Nothing is hardcoded.
 
+Designed and developed by **Hamid Ehsani**.
+
 ## Stack
 
 | Layer | Technology |

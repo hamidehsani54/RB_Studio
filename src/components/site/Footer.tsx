@@ -101,7 +101,21 @@ export async function Footer({ settings, about, logoUrl }: { settings: SiteSetti
         </div>
 
         <div className="footer-bottom">
-          <span>{copyright}</span>
+          <span>
+            {copyright}
+            {settings.showDeveloperCredit !== false && settings.developerName && (
+              <span className="footer-credit">
+                Website by{' '}
+                {settings.developerUrl ? (
+                  <a href={settings.developerUrl} target="_blank" rel="noopener noreferrer">
+                    {settings.developerName}
+                  </a>
+                ) : (
+                  settings.developerName
+                )}
+              </span>
+            )}
+          </span>
           <ul>
             {(settings.legalLinks ?? []).map((l) => (
               <li key={l.url}>

@@ -476,6 +476,8 @@ await payload.updateGlobal({
     headerCtaLabel: 'Check availability',
     headerCtaUrl: '/availability',
     footerHeading: 'Let’s create something timeless.',
+    showDeveloperCredit: true,
+    developerName: 'Hamid Ehsani',
     footerText: 'Wedding, portrait and editorial photography — based in Stockholm, available worldwide.',
     footerLinks: [
       { label: 'Portfolio', url: '/portfolio' },

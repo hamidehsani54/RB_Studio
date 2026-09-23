@@ -72,6 +72,10 @@ describe('every page in the sitemap', () => {
     expect(home).toContain('"LocalBusiness"')
   })
 
+  it('shows the website credit in the footer', () => {
+    for (const [p, html] of pages) expect(html, p).toMatch(/Website bys*(<!-- -->)?s*(<a[^>]*>)?Hamid Ehsani/)
+  })
+
   it('offers a skip-to-content link for keyboard users', () => {
     for (const [p, html] of pages) expect(html, p).toContain('href="#main"')
   })

@@ -2780,6 +2780,23 @@ a:focus-visible .frame--hover > img {
   color: inherit;
 }
 
+.footer-credit {
+  display: inline-block;
+  margin-left: 1.2rem;
+  padding-left: 1.2rem;
+  border-left: 1px solid var(--rule);
+  opacity: 0.8;
+}
+
+@media (max-width: 599px) {
+  .footer-credit {
+    display: block;
+    margin: 0.4rem 0 0;
+    padding: 0;
+    border: 0;
+  }
+}
+
 .footer-bottom a:hover,
 .footer-bottom button:hover {
   color: var(--on-dark);

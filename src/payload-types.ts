@@ -2501,6 +2501,12 @@ export interface SiteSetting {
         id?: string | null;
       }[]
     | null;
+  showDeveloperCredit?: boolean | null;
+  developerName?: string | null;
+  /**
+   * Optional link, e.g. a portfolio or LinkedIn
+   */
+  developerUrl?: string | null;
   social?:
     | {
         platform: 'instagram' | 'facebook' | 'youtube' | 'tiktok' | 'pinterest' | 'linkedin' | 'vimeo' | 'other';
@@ -2692,6 +2698,9 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
+  showDeveloperCredit?: T;
+  developerName?: T;
+  developerUrl?: T;
   social?:
     | T
     | {

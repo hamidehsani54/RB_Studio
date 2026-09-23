@@ -122,6 +122,25 @@ export const SiteSettings: GlobalConfig = {
             { name: 'footerText', type: 'textarea' },
             { name: 'footerLinks', type: 'array', labels: { singular: 'Link', plural: 'Footer menu' }, fields: navItem },
             { name: 'legalLinks', type: 'array', labels: { singular: 'Link', plural: 'Legal links' }, fields: navItem },
+            {
+              type: 'collapsible',
+              label: 'Website credit',
+              admin: { initCollapsed: true, description: 'Small “Website by …” line at the bottom of the footer.' },
+              fields: [
+                {
+                  type: 'row',
+                  fields: [
+                    { name: 'showDeveloperCredit', type: 'checkbox', label: 'Show credit', defaultValue: true, admin: { width: '20%' } },
+                    { name: 'developerName', type: 'text', defaultValue: 'Hamid Ehsani', admin: { width: '40%' } },
+                    {
+                      name: 'developerUrl',
+                      type: 'text',
+                      admin: { width: '40%', description: 'Optional link, e.g. a portfolio or LinkedIn' },
+                    },
+                  ],
+                },
+              ],
+            },
           ],
         },
         {
