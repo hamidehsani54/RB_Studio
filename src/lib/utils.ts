@@ -1,6 +1,12 @@
 import type { Media } from '@/payload-types'
 
-export const serverUrl = () => (process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000').replace(/\/$/, '')
+export const serverUrl = () =>
+  (
+    process.env.NEXT_PUBLIC_SERVER_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : 'http://localhost:3000')
+  ).replace(/\/$/, '')
 
 /** Relationship fields may be an ID or a populated document. */
 export const asDoc = <T extends { id: number | string }>(value: unknown): T | null =>

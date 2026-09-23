@@ -30,3 +30,7 @@ Thumbs.db
 .vscode
 .idea
 .claude
+
+.vercel
+.env*
+!.env.example

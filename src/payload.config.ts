@@ -30,7 +30,9 @@ import { migrations } from './migrations'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-const serverURL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+const serverURL =
+  process.env.NEXT_PUBLIC_SERVER_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000')
 
 // `file:./x.db` → SQLite (local development) · `postgres://…` → PostgreSQL / Supabase (production)
 const databaseUrl = process.env.DATABASE_URL || 'file:./rb-studio.db'

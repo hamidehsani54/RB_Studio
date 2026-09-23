@@ -6,6 +6,12 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
+// On Vercel, default the public site address to the project's production domain
+// (set NEXT_PUBLIC_SERVER_URL explicitly once a custom domain such as rbstudio.se is added).
+if (!process.env.NEXT_PUBLIC_SERVER_URL && process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+  process.env.NEXT_PUBLIC_SERVER_URL = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+}
+
 const nextConfig: NextConfig = {
   images: {
     // Photographs are served as AVIF (or WebP as fallback) at the exact size each screen needs.
