@@ -1193,7 +1193,7 @@ export interface ProcessStep {
   createdAt: string;
 }
 /**
- * Tip: the visual “Availability calendar” in the sidebar is the easiest way to manage dates.
+ * Tip: the visual “Availability calendar” in the sidebar is the easiest way to manage dates. Removing a day that belongs to a booking (or setting it to Available) cancels that booking.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "availability".
@@ -1210,12 +1210,16 @@ export interface Availability {
    * Only visible in the admin panel — never on the website.
    */
   note?: string | null;
+  /**
+   * Set automatically when a client requests this day.
+   */
+  inquiry?: (number | null) | Inquiry;
   title?: string | null;
   updatedAt: string;
   createdAt: string;
 }
 /**
- * Messages sent from the contact form. Use filters and search, change the status as you go.
+ * Every request from the contact form. A request with a date reserves that day. Set the status to “Confirmed” to book it (the client receives a confirmation email), or “Cancelled”/“Declined” to free the day again.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "inquiries".
@@ -1227,6 +1231,9 @@ export interface Inquiry {
   phone?: string | null;
   service?: string | null;
   package?: string | null;
+  /**
+   * Changing the date moves the reservation in the calendar.
+   */
   eventDate?: string | null;
   location?: string | null;
   budget?: string | null;
@@ -1242,7 +1249,7 @@ export interface Inquiry {
         id?: string | null;
       }[]
     | null;
-  status: 'new' | 'contacted' | 'follow-up' | 'booked' | 'declined' | 'archived';
+  status: 'new' | 'contacted' | 'follow-up' | 'booked' | 'declined' | 'cancelled' | 'archived';
   consent?: boolean | null;
   sourcePage?: string | null;
   updatedAt: string;
@@ -2237,6 +2244,7 @@ export interface AvailabilitySelect<T extends boolean = true> {
   status?: T;
   label?: T;
   note?: T;
+  inquiry?: T;
   title?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -2442,12 +2450,11 @@ export interface SiteSetting {
    * Where new inquiry notifications are sent (defaults to the email above).
    */
   inquiryEmail?: string | null;
-  autoReplyEnabled?: boolean | null;
-  autoReplySubject?: string | null;
-  /**
-   * Use {name} for the client name.
-   */
-  autoReplyText?: string | null;
+  sendClientEmails?: boolean | null;
+  requestEmailSubject?: string | null;
+  requestEmailMessage?: string | null;
+  confirmedEmailSubject?: string | null;
+  confirmedEmailMessage?: string | null;
   /**
    * Short text shown above the form.
    */
@@ -2654,9 +2661,11 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   email?: T;
   phone?: T;
   inquiryEmail?: T;
-  autoReplyEnabled?: T;
-  autoReplySubject?: T;
-  autoReplyText?: T;
+  sendClientEmails?: T;
+  requestEmailSubject?: T;
+  requestEmailMessage?: T;
+  confirmedEmailSubject?: T;
+  confirmedEmailMessage?: T;
   formIntro?: T;
   budgetOptions?:
     | T

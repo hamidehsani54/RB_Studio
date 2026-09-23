@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import React, { useActionState, useEffect, useRef, useState } from 'react'
-import { submitInquiry, type InquiryState } from '@/app/(frontend)/actions'
+import { checkDateAvailability, submitInquiry, type InquiryState } from '@/app/(frontend)/actions'
 
 type Option = { value: string; label: string }
 
@@ -26,6 +26,7 @@ export function ContactForm(props: Props) {
   const [pkg, setPkg] = useState('')
   const [date, setDate] = useState('')
   const [source, setSource] = useState('')
+  const [dateTaken, setDateTaken] = useState(false)
   const successRef = useRef<HTMLDivElement>(null)
 
   // Pre-fill from links such as /contact?package=signature or ?service=weddings&date=2027-06-12
@@ -43,6 +44,19 @@ export function ContactForm(props: Props) {
     if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setDate(d)
   }, [props.packages, props.services])
 
+  // Tell the visitor straight away if the chosen day is already booked.
+  useEffect(() => {
+    setDateTaken(false)
+    if (!date) return
+    let active = true
+    checkDateAvailability(date)
+      .then((r) => active && setDateTaken(!r.available))
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [date, state])
+
   useEffect(() => {
     if (state.ok) successRef.current?.focus()
   }, [state.ok])
@@ -58,7 +72,9 @@ export function ContactForm(props: Props) {
 
   const err = state.errors ?? {}
   const v = state.values ?? {}
-  const invalid = (k: string) => (err[k] ? { 'aria-invalid': true as const, 'aria-describedby': `${k}-error` } : {})
+  const dateError = dateTaken ? 'This date is already booked. Please choose another date.' : err.eventDate
+  const invalid = (k: string) =>
+    (k === 'eventDate' ? dateError : err[k]) ? { 'aria-invalid': true as const, 'aria-describedby': `${k}-error` } : {}
   const today = new Date().toISOString().slice(0, 10)
 
   return (
@@ -114,7 +130,11 @@ export function ContactForm(props: Props) {
       <div className="field">
         <label htmlFor="f-date">Event / wedding date</label>
         <input id="f-date" name="eventDate" type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} {...invalid('eventDate')} />
-        {err.eventDate && <span className="field__error" id="eventDate-error">{err.eventDate}</span>}
+        {dateError && (
+          <span className="field__error" id="eventDate-error" role="alert">
+            {dateError}
+          </span>
+        )}
       </div>
       <div className="field">
         <label htmlFor="f-location">Location</label>
@@ -166,7 +186,7 @@ export function ContactForm(props: Props) {
         {err.consent && <span className="field__error" id="consent-error">{err.consent}</span>}
       </div>
       <div className="span-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.5rem' }}>
-        <button type="submit" className="btn btn--solid" disabled={pending}>
+        <button type="submit" className="btn btn--solid" disabled={pending || dateTaken}>
           {pending ? 'Sending…' : 'Send inquiry'}
         </button>
         {state.message && (

@@ -1,5 +1,8 @@
-import type { CollectionConfig, Where } from 'payload'
+import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { loggedIn } from '../access'
+import { assertDateFree, formatLongDate, normaliseDate, reservationFor, syncReservation } from '../lib/booking'
+import { DEFAULT_EMAILS, fillTemplate, renderEmail } from '../lib/emailTemplate'
+import type { Inquiry, SiteSetting } from '../payload-types'
 
 export const csvCell = (value: unknown) => {
   const str = value === null || value === undefined ? '' : String(value)
@@ -21,15 +24,105 @@ const exportColumns = [
   'message',
 ] as const
 
+const siteUrl = () =>
+  (
+    process.env.NEXT_PUBLIC_SERVER_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000')
+  ).replace(/\/$/, '')
+
+
+const bookingDetails = (doc: Inquiry): [string, string | null | undefined][] => [
+  ['Date', formatLongDate(doc.eventDate)],
+  ['Service', doc.service],
+  ['Package', doc.package],
+  ['Location', doc.location],
+]
+
+/** Sends email but never lets a mail-server problem break saving the booking. */
+async function safeSend(req: PayloadRequest, message: Parameters<PayloadRequest['payload']['sendEmail']>[0], label: string) {
+  try {
+    await req.payload.sendEmail(message)
+  } catch (err) {
+    req.payload.logger.error({ err, msg: `Could not send ${label} email` })
+  }
+}
+
+async function sendClientEmail(req: PayloadRequest, doc: Inquiry, settings: SiteSetting, kind: 'request' | 'confirmed') {
+  if (settings.sendClientEmails === false || !doc.email) return
+  const values = {
+    name: doc.name,
+    date: doc.eventDate ? formatLongDate(doc.eventDate) : 'your requested date',
+    service: doc.service ?? '',
+    package: doc.package ?? '',
+    siteName: settings.siteName,
+  }
+  const subject =
+    kind === 'request'
+      ? settings.requestEmailSubject || DEFAULT_EMAILS.requestSubject
+      : settings.confirmedEmailSubject || DEFAULT_EMAILS.confirmedSubject
+  const message =
+    kind === 'request'
+      ? settings.requestEmailMessage || DEFAULT_EMAILS.requestMessage
+      : settings.confirmedEmailMessage || DEFAULT_EMAILS.confirmedMessage
+  const text = fillTemplate(message, values)
+  await safeSend(
+    req,
+    {
+      to: doc.email,
+      replyTo: settings.inquiryEmail || settings.email || undefined,
+      subject: fillTemplate(subject, values),
+      text,
+      html: renderEmail({
+        siteName: settings.siteName,
+        heading: kind === 'request' ? 'Booking request received' : 'Your booking is confirmed',
+        message: text,
+        details: bookingDetails(doc),
+        footer: [settings.siteName, settings.email, settings.phone].filter(Boolean).join(' · '),
+        logoUrl: `${siteUrl()}/brand/rb-studio-logo.png`,
+      }),
+    },
+    kind === 'request' ? 'booking request' : 'booking confirmation',
+  )
+}
+
+async function notifyStudio(req: PayloadRequest, doc: Inquiry, settings: SiteSetting) {
+  const to = settings.inquiryEmail || settings.email
+  if (!to) return
+  await safeSend(
+    req,
+    {
+      to,
+      replyTo: doc.email,
+      subject: `New booking request — ${doc.name}${doc.eventDate ? ` · ${formatLongDate(doc.eventDate)}` : ''}`,
+      html: renderEmail({
+        siteName: settings.siteName,
+        heading: `New request from ${doc.name}`,
+        message: `${doc.eventDate ? 'The date has been reserved as “tentative” in the calendar. ' : ''}Open the booking in the admin to confirm or decline it:\n${siteUrl()}/admin/collections/inquiries/${doc.id}`,
+        details: [
+          ['Name', doc.name],
+          ['Email', doc.email],
+          ['Phone', doc.phone],
+          ...bookingDetails(doc),
+          ['Budget', doc.budget],
+          ['Hours', doc.hours],
+          ['Message', doc.message],
+        ],
+      }),
+    },
+    'studio notification',
+  )
+}
+
 export const Inquiries: CollectionConfig = {
   slug: 'inquiries',
-  labels: { singular: 'Inquiry', plural: 'Inquiries' },
+  labels: { singular: 'Booking', plural: 'Bookings & inquiries' },
   admin: {
     group: 'Business',
     useAsTitle: 'name',
-    defaultColumns: ['name', 'service', 'eventDate', 'status', 'createdAt'],
+    defaultColumns: ['name', 'eventDate', 'service', 'status', 'createdAt'],
     listSearchableFields: ['name', 'email', 'phone', 'location', 'message'],
-    description: 'Messages sent from the contact form. Use filters and search, change the status as you go.',
+    description:
+      'Every request from the contact form. A request with a date reserves that day. Set the status to “Confirmed” to book it (the client receives a confirmation email), or “Cancelled”/“Declined” to free the day again.',
     components: {
       beforeListTable: ['/components/admin/ExportInquiries#ExportInquiries'],
     },
@@ -70,45 +163,48 @@ export const Inquiries: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeChange: [
+      // Normalise the date and refuse days that already belong to another booking.
+      async ({ data, originalDoc, req, context }) => {
+        if (data.eventDate) data.eventDate = normaliseDate(data.eventDate)
+        if (context.skipReservationSync) return data
+        const status = data.status ?? originalDoc?.status ?? 'new'
+        const date = data.eventDate !== undefined ? data.eventDate : originalDoc?.eventDate
+        const action = reservationFor(status)
+        if (date && (action === 'tentative' || action === 'booked')) {
+          await assertDateFree({ req, date, inquiryId: originalDoc?.id })
+        }
+        return data
+      },
+    ],
     afterChange: [
-      async ({ doc, operation, req }) => {
-        if (operation !== 'create') return doc
-        try {
-          const settings = await req.payload.findGlobal({ slug: 'site-settings', depth: 0, req })
-          const to = settings.inquiryEmail || settings.email
-          if (to) {
-            const rows = [
-              ['Name', doc.name],
-              ['Email', doc.email],
-              ['Phone', doc.phone],
-              ['Service', doc.service],
-              ['Package', doc.package],
-              ['Date', doc.eventDate ? new Date(doc.eventDate).toLocaleDateString('en-GB') : ''],
-              ['Location', doc.location],
-              ['Budget', doc.budget],
-              ['Hours', doc.hours],
-            ]
-              .filter(([, v]) => v)
-              .map(([k, v]) => `<tr><td style="padding:4px 16px 4px 0;color:#777">${k}</td><td>${v}</td></tr>`)
-              .join('')
-            await req.payload.sendEmail({
-              to,
-              replyTo: doc.email,
-              subject: `New inquiry — ${doc.name}${doc.service ? ` (${doc.service})` : ''}`,
-              html: `<h2 style="font-family:Georgia,serif;font-weight:400">New inquiry from ${doc.name}</h2><table>${rows}</table><p style="white-space:pre-line">${doc.message ?? ''}</p><p><a href="${process.env.NEXT_PUBLIC_SERVER_URL}/admin/collections/inquiries/${doc.id}">Open in admin</a></p>`,
-            })
-          }
-          if (settings.autoReplyEnabled && settings.autoReplyText && doc.email) {
-            await req.payload.sendEmail({
-              to: doc.email,
-              subject: settings.autoReplySubject || `Thank you — ${settings.siteName}`,
-              text: settings.autoReplyText.replace('{name}', doc.name),
-            })
-          }
-        } catch (err) {
-          req.payload.logger.error({ err, msg: 'Could not send inquiry notification' })
+      async ({ doc, previousDoc, operation, req, context }) => {
+        // Keep the calendar in sync (runs in the same database transaction).
+        if (!context.skipReservationSync) await syncReservation({ req, inquiry: doc })
+
+        const settings = await req.payload.findGlobal({ slug: 'site-settings', depth: 0, req })
+        if (operation === 'create') {
+          await notifyStudio(req, doc, settings)
+          await sendClientEmail(req, doc, settings, 'request')
+        } else if (doc.status === 'booked' && previousDoc?.status !== 'booked') {
+          await sendClientEmail(req, doc, settings, 'confirmed')
         }
         return doc
+      },
+    ],
+    beforeDelete: [
+      // Deleting a booking frees its day. This runs before the delete, because the database
+      // clears the day's link to the booking as part of deleting it.
+      async ({ id, req }) => {
+        const { docs } = await req.payload.find({
+          collection: 'availability',
+          where: { inquiry: { equals: id } },
+          depth: 0,
+          req,
+        })
+        for (const d of docs) {
+          await req.payload.delete({ collection: 'availability', id: d.id, req, context: { skipReservationSync: true } })
+        }
       },
     ],
   },
@@ -130,7 +226,11 @@ export const Inquiries: CollectionConfig = {
           name: 'eventDate',
           label: 'Event / wedding date',
           type: 'date',
-          admin: { width: '33%', date: { pickerAppearance: 'dayOnly', displayFormat: 'd MMM yyyy' } },
+          admin: {
+            width: '33%',
+            date: { pickerAppearance: 'dayOnly', displayFormat: 'd MMM yyyy' },
+            description: 'Changing the date moves the reservation in the calendar.',
+          },
         },
       ],
     },
@@ -166,11 +266,12 @@ export const Inquiries: CollectionConfig = {
       defaultValue: 'new',
       index: true,
       options: [
-        { label: 'New', value: 'new' },
+        { label: 'New request (date reserved)', value: 'new' },
         { label: 'Contacted', value: 'contacted' },
         { label: 'Follow-up', value: 'follow-up' },
-        { label: 'Booked', value: 'booked' },
-        { label: 'Declined', value: 'declined' },
+        { label: 'Confirmed ✓ (emails the client)', value: 'booked' },
+        { label: 'Declined (frees the date)', value: 'declined' },
+        { label: 'Cancelled (frees the date)', value: 'cancelled' },
         { label: 'Archived', value: 'archived' },
       ],
       admin: { position: 'sidebar' },

@@ -2034,4 +2034,21 @@ ALTER TABLE "payload"."site_settings" ADD COLUMN "show_developer_credit" boolean
 ALTER TABLE "payload"."site_settings" ADD COLUMN "developer_name" varchar DEFAULT 'Hamid Ehsani';
 ALTER TABLE "payload"."site_settings" ADD COLUMN "developer_url" varchar;
 INSERT INTO "payload"."payload_migrations" ("name", "batch") VALUES ('20260923_122605_developer_credit', 3);
+-- 20260923_125321_bookings_step1
+ALTER TYPE "payload"."enum_inquiries_status" ADD VALUE 'cancelled' BEFORE 'archived';
+  ALTER TABLE "payload"."availability" ADD COLUMN "inquiry_id" integer;
+  ALTER TABLE "payload"."availability" ADD CONSTRAINT "availability_inquiry_id_inquiries_id_fk" FOREIGN KEY ("inquiry_id") REFERENCES "payload"."inquiries"("id") ON DELETE set null ON UPDATE no action;
+  CREATE INDEX "availability_inquiry_idx" ON "payload"."availability" USING btree ("inquiry_id");
+  ALTER TABLE "payload"."site_settings" DROP COLUMN "auto_reply_enabled";
+  ALTER TABLE "payload"."site_settings" DROP COLUMN "auto_reply_subject";
+  ALTER TABLE "payload"."site_settings" DROP COLUMN "auto_reply_text";
+INSERT INTO "payload"."payload_migrations" ("name", "batch") VALUES ('20260923_125321_bookings_step1', 4);
+
+-- 20260923_125328_booking_emails
+ALTER TABLE "payload"."site_settings" ADD COLUMN "send_client_emails" boolean DEFAULT true;
+  ALTER TABLE "payload"."site_settings" ADD COLUMN "request_email_subject" varchar;
+  ALTER TABLE "payload"."site_settings" ADD COLUMN "request_email_message" varchar;
+  ALTER TABLE "payload"."site_settings" ADD COLUMN "confirmed_email_subject" varchar;
+  ALTER TABLE "payload"."site_settings" ADD COLUMN "confirmed_email_message" varchar;
+INSERT INTO "payload"."payload_migrations" ("name", "batch") VALUES ('20260923_125328_booking_emails', 5);
 COMMIT;

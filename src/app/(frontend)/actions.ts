@@ -1,6 +1,7 @@
 'use server'
 import { headers } from 'next/headers'
 import { getClient } from '@/lib/data'
+import { DATE_TAKEN_MESSAGE, normaliseDate } from '@/lib/booking'
 
 export type InquiryState = { ok: boolean; errors?: Record<string, string>; message?: string; values?: Record<string, string> }
 
@@ -61,7 +62,26 @@ export async function submitInquiry(_prev: InquiryState, fd: FormData): Promise<
     hits.set(ip, [...recent, now])
     return { ok: true }
   } catch (err) {
+    // Someone else reserved the day a moment earlier (checked again inside the database transaction).
+    if (err instanceof Error && err.message === DATE_TAKEN_MESSAGE) {
+      return { ok: false, values, errors: { eventDate: DATE_TAKEN_MESSAGE } }
+    }
     console.error('Inquiry failed', err)
     return { ok: false, values, message: 'Something went wrong. Please try again, or email directly.' }
   }
+}
+
+/** Live check used by the form as soon as a date is picked. Reveals only free / taken. */
+export async function checkDateAvailability(date: string): Promise<{ available: boolean }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { available: true }
+  const payload = await getClient()
+  const { docs } = await payload.find({
+    collection: 'availability',
+    where: { date: { equals: normaliseDate(`${date}T12:00:00.000Z`) } },
+    limit: 1,
+    depth: 0,
+    overrideAccess: false,
+    select: { status: true },
+  })
+  return { available: !docs[0] || docs[0].status === 'available' }
 }

@@ -1,6 +1,7 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
+import { resendAdapter } from '@payloadcms/email-resend'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
@@ -38,17 +39,24 @@ const serverURL =
 const databaseUrl = process.env.DATABASE_URL || 'file:./rb-studio.db'
 const isPostgres = /^postgres(ql)?:\/\//.test(databaseUrl)
 
-const email = process.env.SMTP_HOST
-  ? nodemailerAdapter({
-      defaultFromAddress: process.env.EMAIL_FROM_ADDRESS || 'hello@rbstudio.se',
-      defaultFromName: process.env.EMAIL_FROM_NAME || 'RB Studio',
-      transportOptions: {
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT || 587),
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      },
-    })
-  : undefined
+// Email: Resend (RESEND_API_KEY) or any SMTP server (SMTP_HOST, e.g. smtp.gmail.com).
+// Without either, emails are only written to the server log.
+const fromAddress = process.env.EMAIL_FROM_ADDRESS || 'hello@rbstudio.se'
+const fromName = process.env.EMAIL_FROM_NAME || 'RB Studio'
+const email = process.env.RESEND_API_KEY
+  ? resendAdapter({ apiKey: process.env.RESEND_API_KEY, defaultFromAddress: fromAddress, defaultFromName: fromName })
+  : process.env.SMTP_HOST
+    ? nodemailerAdapter({
+        defaultFromAddress: fromAddress,
+        defaultFromName: fromName,
+        transportOptions: {
+          host: process.env.SMTP_HOST,
+          port: Number(process.env.SMTP_PORT || 587),
+          secure: Number(process.env.SMTP_PORT) === 465,
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        },
+      })
+    : undefined
 
 export default buildConfig({
   serverURL,

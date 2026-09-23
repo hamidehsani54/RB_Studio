@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Status = 'booked' | 'tentative' | 'available'
-type Entry = { id: number | string; date: string; status: Status; label?: string | null; note?: string | null }
+type Entry = { id: number | string; date: string; status: Status; label?: string | null; note?: string | null; inquiry?: number | string | null }
 
 const COLORS: Record<Status, string> = { booked: '#1f1e1c', tentative: '#b8894f', available: '#4f8a64' }
 const LABELS: Record<Status, string> = { booked: 'Booked', tentative: 'Tentative', available: 'Available' }
@@ -84,7 +84,7 @@ export const AvailabilityCalendar = () => {
 
   const remove = async () => {
     if (!selected || !entries[selected]) return
-    if (!window.confirm('Remove this date from the calendar? It will show as free on the website.')) return
+    if (!window.confirm(entries[selected].inquiry ? 'This day belongs to a booking. Removing it CANCELS that booking and frees the date. Continue?' : 'Remove this date from the calendar? It will show as free on the website.')) return
     setBusy(true)
     await fetch(`/api/availability/${entries[selected].id}`, { method: 'DELETE', credentials: 'include' })
     setBusy(false)
@@ -193,6 +193,11 @@ export const AvailabilityCalendar = () => {
                 year: 'numeric',
               })}
             </h4>
+            {entries[selected]?.inquiry && (
+              <a href={`/admin/collections/inquiries/${entries[selected].inquiry}`} style={{ fontSize: 13 }}>
+                Open booking →
+              </a>
+            )}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {(Object.keys(COLORS) as Status[]).map((s) => (
                 <button

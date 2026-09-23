@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 import { adminsOnlyField, anyone, loggedIn } from '../access'
 import { revalidateGlobal } from '../hooks/revalidate'
+import { DEFAULT_EMAILS } from '../lib/emailTemplate'
 
 const navItem = [
   {
@@ -63,12 +64,43 @@ export const SiteSettings: GlobalConfig = {
             },
             {
               type: 'collapsible',
-              label: 'Automatic reply to clients',
-              admin: { initCollapsed: true },
+              label: 'Booking emails to clients',
+              admin: {
+                initCollapsed: true,
+                description:
+                  'Placeholders: {name} {date} {service} {package} {siteName}. Leave a field empty to use the default text.',
+              },
               fields: [
-                { name: 'autoReplyEnabled', type: 'checkbox', defaultValue: false },
-                { name: 'autoReplySubject', type: 'text' },
-                { name: 'autoReplyText', type: 'textarea', admin: { description: 'Use {name} for the client name.' } },
+                {
+                  name: 'sendClientEmails',
+                  type: 'checkbox',
+                  label: 'Send booking emails to clients',
+                  defaultValue: true,
+                },
+                {
+                  name: 'requestEmailSubject',
+                  type: 'text',
+                  label: '“Request received” — subject',
+                  admin: { placeholder: DEFAULT_EMAILS.requestSubject },
+                },
+                {
+                  name: 'requestEmailMessage',
+                  type: 'textarea',
+                  label: '“Request received” — message',
+                  admin: { placeholder: DEFAULT_EMAILS.requestMessage, rows: 8 },
+                },
+                {
+                  name: 'confirmedEmailSubject',
+                  type: 'text',
+                  label: '“Booking confirmed” — subject',
+                  admin: { placeholder: DEFAULT_EMAILS.confirmedSubject },
+                },
+                {
+                  name: 'confirmedEmailMessage',
+                  type: 'textarea',
+                  label: '“Booking confirmed” — message',
+                  admin: { placeholder: DEFAULT_EMAILS.confirmedMessage, rows: 8 },
+                },
               ],
             },
             {

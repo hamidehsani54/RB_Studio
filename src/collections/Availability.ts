@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 import { anyone, loggedIn, loggedInField } from '../access'
-import { revalidateHooks } from '../hooks/revalidate'
+import { revalidateAfterChange, revalidateAfterDelete } from '../hooks/revalidate'
 
 const statusLabel: Record<string, string> = { booked: 'Booked', tentative: 'Tentative', available: 'Available' }
 
@@ -12,12 +12,49 @@ export const Availability: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['date', 'status', 'label', 'note'],
     listSearchableFields: ['label', 'note'],
-    description: 'Tip: the visual “Availability calendar” in the sidebar is the easiest way to manage dates.',
+    description:
+      'Tip: the visual “Availability calendar” in the sidebar is the easiest way to manage dates. Removing a day that belongs to a booking (or setting it to Available) cancels that booking.',
   },
   defaultSort: 'date',
   access: { read: anyone, create: loggedIn, update: loggedIn, delete: loggedIn },
   hooks: {
-    ...revalidateHooks,
+    afterChange: [
+      revalidateAfterChange,
+      // Freeing a booked day in the calendar cancels the booking it belongs to.
+      async ({ doc, req, context }) => {
+        if (context.skipReservationSync || !doc.inquiry || doc.status !== 'available') return doc
+        const inquiryId = typeof doc.inquiry === 'object' ? doc.inquiry.id : doc.inquiry
+        await req.payload.update({
+          collection: 'inquiries',
+          id: inquiryId,
+          data: { status: 'cancelled' },
+          req,
+          context: { skipReservationSync: true },
+        })
+        await req.payload.update({ collection: 'availability', id: doc.id, data: { inquiry: null }, req, context: { skipReservationSync: true } })
+        return doc
+      },
+    ],
+    afterDelete: [
+      revalidateAfterDelete,
+      // Removing a booked day in the calendar cancels the booking it belongs to.
+      async ({ doc, req, context }) => {
+        if (context.skipReservationSync || !doc.inquiry) return doc
+        const inquiryId = typeof doc.inquiry === 'object' ? doc.inquiry.id : doc.inquiry
+        try {
+          await req.payload.update({
+            collection: 'inquiries',
+            id: inquiryId,
+            data: { status: 'cancelled' },
+            req,
+            context: { skipReservationSync: true },
+          })
+        } catch {
+          /* booking already deleted */
+        }
+        return doc
+      },
+    ],
     beforeChange: [
       ({ data, originalDoc }) => {
         const status = data.status ?? originalDoc?.status
@@ -72,6 +109,14 @@ export const Availability: CollectionConfig = {
       label: 'Private note',
       access: { read: loggedInField },
       admin: { description: 'Only visible in the admin panel — never on the website.' },
+    },
+    {
+      name: 'inquiry',
+      label: 'Booking',
+      type: 'relationship',
+      relationTo: 'inquiries',
+      access: { read: loggedInField },
+      admin: { readOnly: true, description: 'Set automatically when a client requests this day.' },
     },
     { name: 'title', type: 'text', admin: { hidden: true } },
   ],
