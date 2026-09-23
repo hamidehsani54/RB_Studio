@@ -73,7 +73,7 @@ describe('every page in the sitemap', () => {
   })
 
   it('shows the website credit in the footer', () => {
-    for (const [p, html] of pages) expect(html, p).toMatch(/Website bys*(<!-- -->)?s*(<a[^>]*>)?Hamid Ehsani/)
+    for (const [p, html] of pages) expect(html, p).toMatch(/Website by(\s|<!-- -->)*(<a[^>]*>)?Hamid Ehsani/)
   })
 
   it('offers a skip-to-content link for keyboard users', () => {
